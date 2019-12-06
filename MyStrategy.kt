@@ -1,4 +1,5 @@
 import model.*
+//import dont_shoot_the_wall
 
 class MyStrategy {
 
@@ -31,9 +32,6 @@ class MyStrategy {
             }
         }
 
-
-
-
         var targetPos: Vec2Double = unit.position
         if (unit.weapon == null && nearestWeapon != null) {
             targetPos = nearestWeapon.position
@@ -42,7 +40,10 @@ class MyStrategy {
         } else if (nearestEnemy != null) {
             targetPos = nearestEnemy.position
         }
-        debug.draw(CustomData.Log("Target pos: $targetPos"))
+        debug.draw(CustomData.Log("Unit pos: ${unit.position.x}, ${unit.position.y}"))
+        debug.draw(CustomData.Log("Tile at unit pos: ${game.level.tiles[unit.position.x.toInt() - 1][unit.position.y.toInt()]}"))
+        debug.draw(CustomData.Log("Target pos: ${targetPos.x}, ${targetPos.y}"))
+        debug.draw(CustomData.Log("targetPos.x - unit.position.x: ${targetPos.x} - , ${unit.position.x} = ${targetPos.x - unit.position.x}"))
         var aim = Vec2Double(0.0, 0.0)
         if (nearestEnemy != null) {
             aim = Vec2Double(nearestEnemy.position.x - unit.position.x,
@@ -56,11 +57,12 @@ class MyStrategy {
             jump = true
         }
         val action = UnitAction()
-        action.velocity = targetPos.x - unit.position.x
+        action.velocity = if (targetPos.x - unit.position.x < 0) -game.properties.unitMaxHorizontalSpeed else game.properties.unitMaxHorizontalSpeed
+        debug.draw(CustomData.Log("game.properties.... = ${action.velocity}"))
         action.jump = jump
         action.jumpDown = !jump
         action.aim = aim
-        action.shoot = true
+        action.shoot = dont_shoot_the_wall(unit, nearestEnemy, game)
         action.reload = false
         action.swapWeapon = false
         action.plantMine = false
