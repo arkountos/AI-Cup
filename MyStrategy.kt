@@ -3,6 +3,41 @@ import model.*
 
 class MyStrategy {
 
+    /* AvoidMine:
+    Return null if there is no need to avoid any mine.
+    Else, return a DoubleArray containing the following:
+    avoidMine[0] = jump = 1.0 in order to jump, and = 0.0 otherwise
+    avoidMine[1] = new velocity
+    avoidMine[2] = new targetPos.x
+    avoidMine[3] = new targetPos.ydd */
+    private fun avoidMine(unit: model.Unit, game: Game, targetPos: Vec2Double): DoubleArray? {
+        var jump: Double = 0.0;
+        var velocity = targetPos.x - unit.position.x;
+
+        var nearestPlantedMine: Mine? = null
+        for (mine in game.mines) {
+            if (mine is Mine) {
+                if (nearestPlantedMine == null || distanceSqr(unit.position, mine.position) < distanceSqr(unit.position, nearestPlantedMine.position)) {
+                    nearestPlantedMine = mine
+                }
+            }
+        }
+
+        if (nearestPlantedMine != null && nearestPlantedMine.state == model.MineState.TRIGGERED && distanceSqr(unit.position, nearestPlantedMine.position) < 10*nearestPlantedMine.explosionParams.radius) {
+            if(nearestPlantedMine.position.y <= unit.position.y) //If the mine is below you, jump
+                jump = 1.0
+
+            if (unit.position.x > nearestPlantedMine.position.x)
+                targetPos.x = nearestPlantedMine.position.x + 100 * nearestPlantedMine.explosionParams.radius
+            else
+                targetPos.x = nearestPlantedMine.position.x - 100 * nearestPlantedMine.explosionParams.radius
+            velocity = targetPos.x
+            
+            return doubleArrayOf(jump, velocity, targetPos.x, targetPos.y)
+        }
+        return null
+    }
+    
     fun getAction(unit: model.Unit, game: Game, debug: Debug): UnitAction {
         var nearestEnemy: model.Unit? = null
         for (other in game.units) {
@@ -49,7 +84,20 @@ class MyStrategy {
             aim = Vec2Double(nearestEnemy.position.x - unit.position.x,
                     nearestEnemy.position.y - unit.position.y)
         }
+        
         var jump = targetPos.y > unit.position.y;
+        var velocity = targetPos.x - unit.position.x;
+
+        //Avoid any planted mines (that need to be avoided):
+        var avoidMineResults: DoubleArray? = avoidMine(unit, game, targetPos);
+        if(avoidMineResults != null){
+            if(avoidMineResults[0]==1.0)
+                jump = true
+            velocity = avoidMineResults[1]
+            targetPos.x = avoidMineResults[2]
+            targetPos.y = avoidMineResults[3]
+        }
+
         if (targetPos.x > unit.position.x && game.level.tiles[(unit.position.x + 1).toInt()][(unit.position.y).toInt()] == Tile.WALL) {
             jump = true
         }
@@ -57,7 +105,7 @@ class MyStrategy {
             jump = true
         }
         val action = UnitAction()
-        action.velocity = if (targetPos.x - unit.position.x < 0) -game.properties.unitMaxHorizontalSpeed else game.properties.unitMaxHorizontalSpeed
+        action.velocity = if (velocity < 0) -game.properties.unitMaxHorizontalSpeed else game.properties.unitMaxHorizontalSpeed
         debug.draw(CustomData.Log("game.properties.... = ${action.velocity}"))
         action.jump = jump
         action.jumpDown = !jump
