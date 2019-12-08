@@ -57,6 +57,7 @@ class MyStrategy {
                 }
             }
         }
+
         var nearestMedkit: LootBox? = null
         for (lootBox in game.lootBoxes) {
             if (lootBox.item is Item.HealthPack) {
@@ -75,9 +76,18 @@ class MyStrategy {
         } else if (nearestEnemy != null) {
             targetPos = nearestEnemy.position
         }
+
+        // This needs to happen here instead of the end of the code so that
+        // we can adjust the target if we need to change our weapon
+        val action = UnitAction()
+        action.swapWeapon = omg_is_that_a_pistol(unit)
+        print("Is that a pistol? ${action.swapWeapon}")
+        if (action.swapWeapon == true && nearestWeapon != null){
+            targetPos = nearestWeapon.position
+        }
+
         debug.draw(CustomData.Log("Unit pos: ${unit.position.x}, ${unit.position.y}"))
         debug.draw(CustomData.Log("Tile at unit pos: ${game.level.tiles[unit.position.x.toInt() - 1][unit.position.y.toInt()]}"))
-        debug.draw(CustomData.Log("Target pos: ${targetPos.x}, ${targetPos.y}"))
         debug.draw(CustomData.Log("targetPos.x - unit.position.x: ${targetPos.x} - , ${unit.position.x} = ${targetPos.x - unit.position.x}"))
         var aim = Vec2Double(0.0, 0.0)
         if (nearestEnemy != null) {
@@ -104,7 +114,9 @@ class MyStrategy {
         if (targetPos.x < unit.position.x && game.level.tiles[(unit.position.x - 1).toInt()][(unit.position.y).toInt()] == Tile.WALL) {
             jump = true
         }
-        val action = UnitAction()
+        val avoid_array = listOf(avoidMine(unit, game, targetPos))
+        
+        debug.draw(CustomData.Log("Target pos: ${targetPos.x}, ${targetPos.y}"))
         action.velocity = if (velocity < 0) -game.properties.unitMaxHorizontalSpeed else game.properties.unitMaxHorizontalSpeed
         debug.draw(CustomData.Log("game.properties.... = ${action.velocity}"))
         action.jump = jump
@@ -112,7 +124,6 @@ class MyStrategy {
         action.aim = aim
         action.shoot = dont_shoot_the_wall(unit, nearestEnemy, game)
         action.reload = false
-        action.swapWeapon = false
         action.plantMine = false
         return action
     }
